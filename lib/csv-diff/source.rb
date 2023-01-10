@@ -7,7 +7,7 @@ class CSVDiff
         # @return [String] the path to the source file
         attr_accessor :path
         # @return [Array<Arrary>] The data for this source
-        attr_reader :data
+        attr_accessor :data
 
         # @return [Array<String>] The names of the fields in the source file
         attr_reader :field_names
@@ -36,6 +36,8 @@ class CSVDiff
         #   values.
         attr_reader :case_sensitive
         alias_method :case_sensitive?, :case_sensitive
+        # @return [Boolean] True if moves are expect to be ignored
+        attr_reader :ignore_moves
         # @return [Boolean] True if leading/trailing whitespace should be stripped
         #   from fields
         attr_reader :trim_whitespace
@@ -112,6 +114,7 @@ class CSVDiff
             end
             @field_names.map!(&:to_s) if @field_names = options[:field_names]
             @case_sensitive = options.fetch(:case_sensitive, true)
+            @ignore_moves = options[:ignore_moves]
             @trim_whitespace = options.fetch(:trim_whitespace, false)
             @ignore_header = options[:ignore_header]
             @include = options[:include]
@@ -150,6 +153,17 @@ class CSVDiff
             @skip_count = 0
             @dup_count = 0
             line_num = 0
+
+            if key_fields.length > 0 and key_fields != [0]
+                fields = @data.shift
+                fields_downcase = fields.map { |field| field.downcase }
+                index_arr = @key_fields.map { |key_field| fields_downcase.find_index(key_field.downcase) }
+                @data = @data.sort_by do |a|
+                    index_arr.map { |item| a[item].nil? ? '0' : a[item] }
+                end
+                @data.unshift fields
+            end
+
             @data.each do |row|
                 line_num += 1
                 next if line_num == 1 && @field_names && @ignore_header
